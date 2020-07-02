@@ -120,6 +120,7 @@ def assessment_list():
     sheet_path = file_path + "pe.xlsx"
     return jsonify(list(pd.read_excel(sheet_path).columns))
 
+
 @app.route('/ll/assessment', methods=['POST'])
 def pe():
     params = eval(json.loads(request.get_data(as_text=True)))
@@ -127,7 +128,7 @@ def pe():
     date2 = params["date2"]  # 获取get请求参数
     asset_list = params["asset_list"]  # 获取get请求参数
 
-    res = get_pe(date1, date2,asset_list)
+    res = get_pe(date1, date2, asset_list)
     return jsonify(res)
 
 
@@ -164,6 +165,20 @@ def eco():
 
         res.append(term)
 
+    return jsonify(res)
+
+
+@app.route('/ll/fci', methods=['POST'])
+def fci():
+    '''
+    country: usfci,eufci,useuas
+    :return:
+    '''
+    params = eval(json.loads(request.get_data(as_text=True)))
+    country = params["country"]  # 获取get请求参数
+    print("country is : {}".format(country))
+
+    res = get_fci_res(country)
     return jsonify(res)
 
 

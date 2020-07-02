@@ -25,7 +25,7 @@ def get_max_back():
     return max(back_list)
 
 
-def get_pe(date1str, date2str,asset_list):
+def get_pe(date1str, date2str, asset_list):
     sheet_path = file_path + 'pe.xlsx'
     pe_sheet = pd.read_excel(sheet_path, sheet_name='pe')
 
@@ -33,9 +33,9 @@ def get_pe(date1str, date2str,asset_list):
     date2 = datetime.strptime(date2str, '%Y-%m-%d')
 
     if date1 not in pe_sheet.index.tolist():
-        return {'error':str(date1) + " is not valid"}
+        return {'error': str(date1) + " is not valid"}
     elif date2 not in pe_sheet.index.tolist():
-        return {'error':str(date2) + " is not valid"}
+        return {'error': str(date2) + " is not valid"}
 
     column_list = []
     left_one_std_list = []
@@ -45,7 +45,7 @@ def get_pe(date1str, date2str,asset_list):
     average_list = []
     date1_list = []
     date2_list = []
-    print("==========="+str(asset_list))
+    print("===========" + str(asset_list))
     print(type(asset_list))
     for column in asset_list:
         aver = np.mean(pe_sheet[column])
@@ -137,8 +137,119 @@ def get_one_day_value():
     return term_list
 
 
+def get_fci_res(country):
+    sheet_path = file_path + 'fci_res.xlsx'
+
+    if country == 'usfci':
+        us_sheet = pd.read_excel(sheet_path, sheet_name='usfci')
+        res = []
+        for date_index in us_sheet.index.tolist():
+            res_term = {}
+            res_term['date'] = date_index.strftime('%Y-%m-%d')
+            res_term["US-货币FCI"] = us_sheet.loc[date_index, 'US-货币FCI']
+            res_term["US-债券FCI"] = us_sheet.loc[date_index, 'US-债券FCI']
+            res_term["US-股票FCI"] = us_sheet.loc[date_index, 'US-股票FCI']
+            res_term["拟合US-FCI"] = us_sheet.loc[date_index, '拟合US-FCI']
+            res.append(res_term)
+        return res
+
+    elif country == 'eufci':
+        us_sheet = pd.read_excel(sheet_path, sheet_name='eufci')
+        res = []
+        for date_index in us_sheet.index.tolist():
+            res_term = {}
+            res_term['date'] = date_index.strftime('%Y-%m-%d')
+            res_term["EU-货币FCI"] = us_sheet.loc[date_index, 'EU-货币FCI']
+            res_term["EU-债券FCI"] = us_sheet.loc[date_index, 'EU-债券FCI']
+            res_term["EU-股票FCI"] = us_sheet.loc[date_index, 'EU-股票FCI']
+            res_term["欧元区FCI"] = us_sheet.loc[date_index, '欧元区FCI']
+            res.append(res_term)
+        return res
+
+    elif country == 'useuas':
+        us_sheet = pd.read_excel(sheet_path, sheet_name='useuas')
+        res = []
+        for date_index in us_sheet.index.tolist():
+            res_term = {}
+            res_term['date'] = date_index.strftime('%Y-%m-%d')
+            res_term["BFCIUS Index"] = us_sheet.loc[date_index, 'BFCIUS Index']
+            res_term["BFCIEU Index"] = us_sheet.loc[date_index, 'BFCIEU Index']
+            res_term["CIFCEMAS Index"] = us_sheet.loc[date_index, 'CIFCEMAS Index']
+            res.append(res_term)
+        return res
+
+
+def get_fci(country):
+    '''
+    计算过程复杂，应做成时时计算，展示时直接读取结果表
+    :param country:
+    :return:
+    '''
+    sheet_path = file_path + 'fci.xlsx'
+    currency_list = [
+        ".TED G Index"
+        , ".USLIBOIS Index"
+        , ".CP3MOSPD Index"
+    ]
+
+    bond_list = [
+        ".BAA10YB Index"
+        , "LF98OAS Index"
+        , ".MAAA10YB Index"
+        , "USSN0C10 Curncy"
+    ]
+
+    stock_list = [
+        "SPX Index"
+        , "VIX Index"
+    ]
+
+    if country == 'usfci':
+        us_sheet = pd.read_excel(sheet_path, sheet_name='usfci')
+        us_param_sheet = pd.read_excel(sheet_path, sheet_name='usfci-param')
+
+        for asset in us_sheet.columns:
+            for date_index in us_sheet.index.tolist():
+                index_value = us_sheet.index.tolist().index(date_index)
+                value = us_sheet.loc[date_index, asset]
+                mean = us_sheet[asset].iloc[index_value:index_value + 1825].mean()
+                std = us_sheet[asset].iloc[index_value:index_value + 1825].std()
+                std_value = (value - mean) / std
+
+                us_sheet.loc[date_index, 'std' + asset] = std_value
+                us_sheet.loc[date_index, "currency_weighted"] = us_sheet.loc[date_index, 'std' + asset] \
+                                                                * us_param_sheet.loc['因子符号', asset] \
+                                                                * us_param_sheet.loc['权重', asset]
+
+        for date_index in us_sheet.index.tolist():
+            us_sheet.loc[date_index, "currency_res"] = 0
+            for asset in currency_list:
+                us_sheet.loc[date_index, "currency_res"] += us_sheet.loc[date_index, asset]
+
+        for date_index in us_sheet.index.tolist():
+            us_sheet.loc[date_index, "bond_res"] = 0
+            for asset in currency_list:
+                us_sheet.loc[date_index, "bond_res"] += us_sheet.loc[date_index, asset]
+
+        for date_index in us_sheet.index.tolist():
+            us_sheet.loc[date_index, "stock_res"] = 0
+            for asset in currency_list:
+                us_sheet.loc[date_index, "stock_res"] += us_sheet.loc[date_index, asset]
+
+        res = {}
+        res["currency_res"] = us_sheet["currency_res"].tolist()
+        res["bond_res"] = us_sheet["bond_res"].tolist()
+        res["stock_res"] = us_sheet["stock_res"].tolist()
+        res["date"] = us_sheet.index.tolist()
+
+        return res
+
+
 if __name__ == '__main__':
     # get_annual_yield()
     # a = get_one_day_value()
-    a = get_pe(1, 2)
+    # a = get_pe(1, 2, [])
+    get_fci_res('usfci')
+    get_fci_res('eufci')
+    get_fci_res('useuas')
     print('yes')
